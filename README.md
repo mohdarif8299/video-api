@@ -44,6 +44,10 @@ npm test # Run all tests
 Swagger/OpenAPI documentation available at:
 - `http://localhost:3000/api/docs`
 
+## API Authorization and Adding Bearer Token in Swagger UI
+1. Click the "Authorize" button (lock icon) in Swagger
+2. Enter the token in the format: `Bearer token1`
+
 ## Architecture
 Follows Model-View-Controller (MVC) pattern:
 - **Models**: Define data structures for videos, shareable links (in `src/types/`)
