@@ -1,38 +1,39 @@
-// src/services/videoService.ts
-import { promises as fsPromises } from 'fs';
-import path from 'path';
+import { promises as fsPromises } from "fs";
+import path from "path";
 import db from "../db/db";
-import crypto from 'crypto';
-import * as fileUtils from '../utils/fileUtils';
-import * as ffmpegUtils from '../utils/ffmpegUtils';
-import { ShareableLink, UploadConfig, Video } from '../types/video.types';
+import crypto from "crypto";
+import * as fileUtils from "../utils/fileUtils";
+import * as ffmpegUtils from "../utils/ffmpegUtils";
+import { ShareableLink, UploadConfig, Video } from "../types/video.types";
+import { uploadsDir } from "../config/uploadsDir";
 
 export const uploadVideo = async (
     file: Express.Multer.File,
     { sizeLimit, minDuration, maxDuration }: UploadConfig
 ): Promise<{ videoId: number; filePath: string }> => {
     if (!file || !file.path) {
-        throw new Error('No file was uploaded');
+        throw new Error("No file was uploaded");
     }
 
-    const newFilename = fileUtils.generateUniqueFilename(file.originalname);
-    const newFilePath = path.join(path.dirname(file.path), newFilename);
-
     try {
-        await fsPromises.rename(file.path, newFilePath);
-        await fsPromises.access(newFilePath, fsPromises.constants.F_OK | fsPromises.constants.R_OK);
-
-        const stats = await fsPromises.stat(newFilePath);
+        const stats = await fsPromises.stat(file.path);
         if (stats.size > sizeLimit) {
+            await fileUtils.cleanupFile(file.path);
             throw new Error(`File size exceeds the limit of ${sizeLimit} bytes.`);
         }
 
-        const duration = await ffmpegUtils.getVideoDuration(newFilePath);
+        const duration = await ffmpegUtils.getVideoDuration(file.path);
         if (duration < minDuration || duration > maxDuration) {
+            await fileUtils.cleanupFile(file.path);
             throw new Error(
                 `Video duration must be between ${minDuration} and ${maxDuration} seconds.`
             );
         }
+
+        const newFilename = fileUtils.generateUniqueFilename(file.originalname);
+        const newFilePath = path.join(uploadsDir, newFilename);
+
+        await fsPromises.rename(file.path, newFilePath);
 
         const result = await db().run(
             "INSERT INTO videos (filename, filepath, size, duration) VALUES (?, ?, ?, ?)",
@@ -46,21 +47,17 @@ export const uploadVideo = async (
     }
 };
 
+
 export const trimVideo = async (
     videoId: number,
     startTime: number,
     endTime: number
 ): Promise<{ filepath: string }> => {
     const video = await getVideoById(videoId);
-    if (!video) throw new Error('Video not found');
+    if (!video) throw new Error("Video not found");
 
     const timestamp = Date.now();
-    const trimmedFilePath = path.join(
-        __dirname,
-        "..",
-        "trimmed-videos",
-        `trimmed-${videoId}-${timestamp}.mp4`
-    );
+    const trimmedFilePath = path.join(uploadsDir, `trimmed-${videoId}-${timestamp}.mp4`);
 
     try {
         await ffmpegUtils.trimVideoFile(video.filepath, trimmedFilePath, startTime, endTime);
@@ -87,9 +84,6 @@ export const trimVideo = async (
 
 export const mergeVideos = async (videoIds: number[]): Promise<{ filepath: string }> => {
     const timestamp = Date.now();
-    const uploadsDir = path.join(__dirname, '..', 'merged-videos');
-
-    await fileUtils.createUploadDirectory(uploadsDir);
     const tempListFile = path.join(uploadsDir, `temp-${timestamp}.txt`);
     const mergedFilePath = path.join(uploadsDir, `merged-${timestamp}.mp4`);
 
@@ -98,7 +92,7 @@ export const mergeVideos = async (videoIds: number[]): Promise<{ filepath: strin
 
         const fileContent = videos
             .map(video => `file '${path.resolve(video.filepath).replace(/'/g, "'\\''")}'`)
-            .join('\n');
+            .join("\n");
 
         await fsPromises.writeFile(tempListFile, fileContent);
         await ffmpegUtils.mergeVideoFiles(tempListFile, mergedFilePath);
