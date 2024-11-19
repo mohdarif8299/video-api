@@ -1,0 +1,289 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "version": "1.0.0",
+    "title": "Video API",
+    "description": "API for video uploading, trimming, merging, and sharing."
+  },
+  "host": "localhost:3000",
+  "basePath": "/api",
+  "schemes": [
+    "http"
+  ],
+  "securityDefinitions": {
+    "BearerAuth": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Enter your bearer token in the format `Bearer <token>`"
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/videos/upload": {
+      "post": {
+        "tags": [
+          "Videos"
+        ],
+        "summary": "Upload a video file",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "parameters": [
+          {
+            "name": "video",
+            "in": "formData",
+            "description": "Video file to upload",
+            "required": true,
+            "type": "file"
+          },
+          {
+            "name": "sizeLimit",
+            "in": "formData",
+            "description": "Maximum file size in bytes",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "name": "minDuration",
+            "in": "formData",
+            "description": "Minimum duration of the video in seconds",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "name": "maxDuration",
+            "in": "formData",
+            "description": "Maximum duration of the video in seconds",
+            "required": true,
+            "type": "integer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Video uploaded successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "example": 1
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/videos/trim/{id}": {
+      "post": {
+        "tags": [
+          "Videos"
+        ],
+        "summary": "Trim an uploaded video",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the video to trim",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "startTime",
+                "endTime"
+              ],
+              "properties": {
+                "startTime": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Start time of the trimmed video in seconds"
+                },
+                "endTime": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "End time of the trimmed video in seconds"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Video trimmed successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "filepath": {
+                  "type": "string",
+                  "example": "uploads/trimmed-12345.mp4"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/videos/merge/{ids}": {
+      "post": {
+        "tags": [
+          "Videos"
+        ],
+        "summary": "Merge multiple video clips into one",
+        "description": "Combines multiple previously uploaded videos into a single video file",
+        "parameters": [
+          {
+            "name": "ids",
+            "in": "path",
+            "description": "Comma-separated list of video IDs to merge (e.g., 1,2,3)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "1,2,3"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Videos merged successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "filepath": {
+                      "type": "string",
+                      "description": "Path to the merged video file",
+                      "example": "uploads/merged-1234567890.mp4"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "At least two video IDs are required for merging"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/videos/share/{id}": {
+      "post": {
+        "tags": [
+          "Videos"
+        ],
+        "summary": "Generate a shareable link for a video",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "ID of the video",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "required": [
+                "expiryInHours"
+              ],
+              "properties": {
+                "expiryInHours": {
+                  "type": "integer",
+                  "description": "Expiry in hours for the shareable link"
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shareable link generated successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "link": {
+                  "type": "string",
+                  "example": "http://localhost:3000/api/videos/share/abcd1234"
+                },
+                "expiry": {
+                  "type": "string",
+                  "example": "2024-11-19T15:30:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          }
+        }
+      }
+    },
+    "/videos/share/validate/{token}": {
+      "get": {
+        "tags": [
+          "Videos"
+        ],
+        "summary": "Validate a shareable link",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "description": "Shareable link token",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Link is valid",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "videoId": {
+                  "type": "integer",
+                  "example": 1
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Link not found or expired"
+          }
+        }
+      }
+    }
+  }
+}
