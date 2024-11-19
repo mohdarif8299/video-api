@@ -17,3 +17,5 @@ app.use("/api/videos", videoRoutes);
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
 console.log(`API Documentation available at http://localhost:${PORT}/api/docs`);
+
+export default app;

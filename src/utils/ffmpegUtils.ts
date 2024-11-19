@@ -1,3 +1,4 @@
+// src/utils/ffmpegUtils.ts
 import ffmpeg from 'fluent-ffmpeg';
 
 export const getVideoDuration = (filePath: string): Promise<number> => {
@@ -10,7 +11,7 @@ export const getVideoDuration = (filePath: string): Promise<number> => {
             }
         });
     });
-};
+}
 
 export const trimVideoFile = (
     inputPath: string,
@@ -19,15 +20,25 @@ export const trimVideoFile = (
     end: number
 ): Promise<void> => {
     return new Promise((resolve, reject) => {
-        ffmpeg(inputPath)
-            .setStartTime(start)
-            .setDuration(end - start)
-            .output(outputPath)
-            .on("end", () => resolve())
-            .on("error", reject)
-            .run();
+        ffmpeg.ffprobe(inputPath, (err, metadata) => {
+            if (err) return reject(err);
+
+            const duration = metadata.format.duration;
+            if (duration === undefined || start < 0 || end <= start || start > duration || end > duration) {
+                return reject(new Error("Invalid start or end time: ensure they are within the video's duration."));
+            }
+
+            ffmpeg(inputPath)
+                .setStartTime(start)
+                .setDuration(end - start)
+                .output(outputPath)
+                .on("end", () => resolve())
+                .on("error", reject)
+                .run();
+        });
     });
 };
+
 
 export const mergeVideoFiles = (
     tempListFile: string,

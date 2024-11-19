@@ -6,7 +6,6 @@ import authenticate from '../middlewares/authMiddleware';
 
 const router = Router();
 
-// Configure multer for video uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, './uploads');
@@ -27,12 +26,11 @@ const upload = multer({
     }
 });
 
-// Routes
 router.post('/upload', authenticate, upload.single('video'), videoController.uploadVideoController);
 router.post('/trim/:id', authenticate, videoController.trimVideoController);
 router.post('/merge/:ids', authenticate, videoController.mergeVideosController);
 router.post('/share/:id', authenticate, videoController.generateShareableLinkController);
-router.get('/share/:token', videoController.streamSharedVideoController);
+router.get('/stream/:token', videoController.streamSharedVideoController);
 router.get('/share/validate/:token', authenticate, videoController.validateShareableLinkController);
 
 export default router;

@@ -1,2 +1,9 @@
 # Dependencies
 node_modules/
+
+# Jest cache
+jest-cache/
+jest-coverage/
+
+# OS-specific files
+.DS_Store

@@ -1,24 +1,22 @@
 import sqlite3 from "sqlite3";
 
-class Database {
-    [x: string]: any;
-    private db: sqlite3.Database;
+let dbInstance: ReturnType<typeof createDatabase> | null = null;
 
-    constructor() {
-        this.db = new sqlite3.Database("./video-api.db", (err) => {
-            if (err) {
-                console.error("Error opening database:", err);
-            } else {
-                console.log("Connected to SQLite database.");
-            }
-        });
-
-        this.initializeTables();
+const createDatabase = (): { run: (query: string, params: any[]) => Promise<{ lastID: number; changes: number }>; get: (query: string, params: any[]) => Promise<any>; close: () => Promise<void> } => {
+    if (dbInstance) {
+        return dbInstance;
     }
+    const db = new sqlite3.Database("./video-api.db", (err) => {
+        if (err) {
+            console.error("Error opening database:", err);
+        } else {
+            console.log("Connected to SQLite database.");
+        }
+    });
 
-    private initializeTables() {
-        this.db.serialize(() => {
-            this.db.run(`
+    const initializeTables = () => {
+        db.serialize(() => {
+            db.run(`
                 CREATE TABLE IF NOT EXISTS videos (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     filename TEXT NOT NULL,
@@ -32,7 +30,7 @@ class Database {
                 )
             `);
 
-            this.db.run(`
+            db.run(`
                 CREATE TABLE IF NOT EXISTS shareable_links (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     video_id INTEGER NOT NULL,
@@ -43,14 +41,15 @@ class Database {
                     FOREIGN KEY(video_id) REFERENCES videos(id)
                 )
             `);
-
-            console.log("Database tables are set up.");
         });
-    }
+    };
 
-    run(query: string, params: any[]): Promise<{ lastID: number, changes: number }> {
+    // Initialize tables only once
+    initializeTables();
+
+    const run = (query: string, params: any[]): Promise<{ lastID: number; changes: number }> => {
         return new Promise((resolve, reject) => {
-            this.db.run(query, params, function (err) {
+            db.run(query, params, function (err) {
                 if (err) {
                     reject(err);
                 } else {
@@ -58,11 +57,11 @@ class Database {
                 }
             });
         });
-    }
+    };
 
-    get(query: string, params: any[]): Promise<any> {
+    const get = (query: string, params: any[]): Promise<any> => {
         return new Promise((resolve, reject) => {
-            this.db.get(query, params, (err, row) => {
+            db.get(query, params, (err, row) => {
                 if (err) {
                     reject(err);
                 } else {
@@ -70,11 +69,30 @@ class Database {
                 }
             });
         });
-    }
+    };
 
-    close() {
-        this.db.close();
-    }
-}
+    const close = (): Promise<void> => {
+        return new Promise((resolve, reject) => {
+            db.close((err) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    // Reset the instance when closed
+                    dbInstance = null;
+                    resolve();
+                }
+            });
+        });
+    };
 
-export default new Database();
+    // Store and return the singleton instance
+    dbInstance = {
+        run,
+        get,
+        close,
+    };
+
+    return dbInstance;
+};
+
+export default createDatabase;

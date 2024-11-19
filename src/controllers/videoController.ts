@@ -7,7 +7,6 @@ import path from 'path';
 import fs from "fs";
 
 const handleError = (res: Response, error: Error, defaultStatus: number = 400) => {
-    console.error('Error:', error);
     res.status(defaultStatus).json({ error: error.message });
 };
 
