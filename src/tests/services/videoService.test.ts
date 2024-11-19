@@ -18,6 +18,8 @@ jest.mock('fs', () => ({
         writeFile: jest.fn(),
         constants: { F_OK: 0, R_OK: 4 },
     },
+    existsSync: jest.fn(() => false), 
+    mkdirSync: jest.fn(), 
 }));
 
 jest.mock('../../utils/fileUtils');
